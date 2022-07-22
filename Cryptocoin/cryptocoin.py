@@ -1,6 +1,8 @@
 import datetime
 import hashlib
 import json
+
+from numpy import block
 from flask import Flask, jsonify, request
 import requests
 from uuid import uuid4
@@ -72,7 +74,29 @@ class Blockchain:
         parsed_url = urlparse(address)
         self.node.add(parsed_url.netloc)
 
+    def consensus_protocol(self):
+        network = self.nodes
+        longest_chain = None
+        max_length = len(self.chain)
+        for node in network:
+            response = request.get(f'http://{node}/5000/get_chain')
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+                if length > max_length:
+                    longest_chain = chain
+                    max_length = length
+        if longest_chain:
+            self.chain = longest_chain
+            return True
+        else:
+            return False
+
+# Rotas
+
 app = Flask(__name__)
+
+node_address = str(uuid4()).replace('-', '')
 
 blockchain = Blockchain()
 
@@ -83,12 +107,14 @@ def mine_block():
     previous_proof = previous_block['proof']
     proof = blockchain.proof_of_work(previous_proof)
     previous_hash = blockchain.hash(previous_block)
+    blockchain.add_transaction(sender = node_address, receiver = 'Someone', amount = 1)
     block = blockchain.create_block(proof, previous_hash)
     response = {'message': 'You have mined a block!',
                 'index': block['index'],
                 'time_stamp': block['time_stamp'],
                 'proof': block['proof'],
-                'previous_hash': block['previous_hash']
+                'previous_hash': block['previous_hash'],
+                'transactions': block['transactions']
                 }
     return jsonify(response), 200
     
@@ -105,6 +131,17 @@ def get_chain():
 def is_chain():
     response = {'valid': blockchain.is_chain_valid(blockchain.chain)
                 }
+    return jsonify(response), 200
+
+@app.route('/add_transaction', methods = ['POST'])
+
+def add_transaction():
+    json = request.get_json
+    transaction_keys = ['sender', 'receiver', 'amount']
+    if not all (key in json for key in transaction_keys):
+        return 'Elements are missing!', 400
+    index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'])
+    response = { 'message': f'This transaction will be added to block {index}' }
     return jsonify(response), 200
 
 app.run(host = '0.0.0.0', port = 5000)

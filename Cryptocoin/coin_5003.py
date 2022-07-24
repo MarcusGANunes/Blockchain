@@ -80,7 +80,7 @@ class Blockchain:
         longest_chain = None
         max_length = len(self.chain)
         for node in network:
-            response = requests.get(f'http://{node}/5000/get_chain')
+            response = requests.get(f'http://{node}/get_chain')
             if response.status_code == 200:
                 length = response.json()['length']
                 chain = response.json()['chain']
@@ -108,7 +108,7 @@ def mine_block():
     previous_proof = previous_block['proof']
     proof = blockchain.proof_of_work(previous_proof)
     previous_hash = blockchain.hash(previous_block)
-    blockchain.add_transaction(sender = node_address, receiver = 'Someone', amount = 1)
+    blockchain.add_transaction(sender = node_address, receiver = 'Someone3', amount = 1)
     block = blockchain.create_block(proof, previous_hash)
     response = {
         'message': 'You have mined a block!',
@@ -179,4 +179,4 @@ def replace_chain():
         }
     return jsonify(response), 201
 
-app.run(host = '0.0.0.0', port = 5000)
+app.run(host = '0.0.0.0', port = 5003)
